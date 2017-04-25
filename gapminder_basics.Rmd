@@ -79,25 +79,25 @@ There are some nice ways to inspect your data once you've loaded it into memory.
 * `summary()` is pretty self-explanatory.  The output looks different depending on the type of data you are looking at.  It does not show you what the data looks like in its basic form, but gives you an overview of the entire set.
 
 ``` {r} 
-summary(gapminder)
+summary(gap_df)
 ```
 
 * `head()` which gives you just the first 6 (default) observations in the set.  This shows you what the data actually looks like, in truncated form.
 
 ``` {r} 
-head(gapminder)
+head(gap_df)
 ```
 
 * `glimpse()` for data frames shows you each variable, its class, and the first few instances.  This is built into the `tidyverse` package.
 
 ``` {r} 
-glimpse(gapminder)
+glimpse(gap_df)
 ```
 
 * `str()` shows you the structure of the data.  For complex data classes, this lets you see how it's all put together.
 
 ``` {r} 
-str(gapminder)
+str(gap_df)
 ```
 
 ## Tidying data
@@ -112,7 +112,7 @@ Looking at the data views above, it looks like this data is already pretty "tidy
 
 ### `tidyr` package
 
-Data tidying uses the `tidyr` package tools to reshape the data into a more tidy form (and into less tidy forms if you really insist), including: 
+Data tidying uses the `tidyr` package tools to reshape the data into a more tidy form (and into less tidy forms if you must), including: 
 
 * `gather()` brings together data from several different variables (columns) into a single variable; a "key" column based on the original column names helps you distinguish them.
 * `spread()` is the opposite of `gather()` - take a single column of data, and a "key" column of data information, and spread the data out into columns with names taken from the "key" column.
@@ -156,12 +156,15 @@ But please don't do that.  Harder for other audiences (including your future sel
 
 #### `gather()` to make data "long" format
 
+bring it all back into a more useful "long" format.
+
 ``` {r}
 pop_df_narrow <- pop_df_wide %>%
   gather(key = year, value = pop, `1952`:`2007`) 
 ### it's rare, but if your column headings are numbers (or have spaces) you
 ### can put the backtick marks around them.
 ```
+
 
 # Data exploration and visualization
 
@@ -274,11 +277,24 @@ DT::datatable(gap_continent_summary)
 Note the mean, sum, median, etc functions will return NA if any of the data points in the group are NA.  The na.rm = TRUE removes them before calculating.
 Note that summarize() collapses each grouping into a single row, and drops any columns that are not explicitly grouped or created. Using mutate() keeps all the rows and columns, and just add new  variables as requested (and calculates means/maxes according to groups if any).
 
+#### Write the modified data to a file
+
+Just for practice, we'll write out our data; let's first create a folder to put it into.  Then we'll read in the data in the next section.
+
+``` {r}
+dir.create('data')
+
+write_csv(gap_continent_summary, 'data/gap_cont_sum.csv')
+```
+
 ## Assigning plots to objects
 
 `ggplot` outputs can be stored as an object, which can then be further manipulated by adding more geometries/etc.  That object can also be passed to other functions like `print` or `ggplotly`, or returned from within a function.  If you assign the plot to an object, it suppresses the immediate displaying of the plot, but you can view the plot just by calling the plot object's name.
 
 ``` {r} 
+
+gap_continent_summary <- read_csv('data/gap_cont_sum.csv')
+
 pcgdp_plot <- ggplot(gap_continent_summary, aes(x = year, y = pcgdp_mean, color = continent, blargle = pop_total)) +
   geom_point() +
   labs(title = 'Per capita GDP by continent',
