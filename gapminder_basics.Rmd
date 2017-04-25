@@ -1,0 +1,454 @@
+---
+title: "Gapminder Basics: R Markdown version"
+author: "Casey O'Hara"
+date: "4/24/2017"
+output:
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_depth: 3
+    toc_float: yes
+    number_sections: true
+    theme: cerulean
+    highlight: haddock
+
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warnings = FALSE)
+```
+
+# Setting up
+
+First steps: set up the script with all the tools you need.  This includes loading packages from your library of packages, using the `library()` command.  
+
+* Note: The packages may first need to be installed using the `install.packages()` function, which defaults to looking at the CRAN repository, where curated packages are maintained.
+* You may also wish to `update.packages()` occasionally.
+* Some packages are available from the developer rather than through CRAN, and can be downloaded directly from GitHub using the `install_github()` function within the `devtools` package (which may be downloaded from CRAN).
+
+``` {r load packages and data} 
+
+### Intro to basic R using the GapMinder data set
+
+library(tidyverse) 
+### if not installed, highlight this and hit cmd-enter: install.packages(tidyverse)
+### the tidyverse package is a super-package that loads the following
+### packages, among others:
+### * tidyr, with functions for data 'tidying'
+### * dplyr, with functions for data manipulation and calculation
+### * readr, with functions for reading/writing data in various formats
+### * ggplot2, with functions for data visualization
+
+library(stringr)
+### This is part of the tidyverse package, but doesn't get loaded
+### automatically with the 'library()' function.  It has functions
+### for working with strings.
+
+library(gapminder) # install.packages(gapminder)
+### this package contains a stripped-down dataset from GapMinder.
+
+### protip: put these in the 'setup' chunk and they will load automatically 
+### when you first try to run anything in the script.
+
+```
+
+
+# Data tidying
+
+## Loading data
+
+For this exploration, we'll use the data from the `gapminder` package loaded in the previous code chunk.  There are other ways to get data into R, the most common being:
+
+* `read.csv()` from the base R package.  Old school!
+* `read_csv()` from the `readr` package (considerably faster generally than `read.csv()` for large data sets).  Note that when you load the `tidyverse` package, this gets loaded automatically.
+* there are also functions for reading Excel spreadsheets, .dbf files, spatial data files, and so on; these typically are accessed using a package (e.g. `readxl`) that you may need to install first.
+
+## Inspecting data
+
+``` {r load data}
+
+### this pulls the data from the gapminder package into an object within the 
+### local environment to make it easier to access...
+gap_df <- gapminder
+
+```
+
+There are some nice ways to inspect your data once you've loaded it into memory.  Five that are particularly useful:
+
+* `View()` (or click on the variable name in the 'Environment' pane) for certain data types (classes) creates a tab here in the script window with an interactive view of your data.
+* `summary()` is pretty self-explanatory.  The output looks different depending on the type of data you are looking at.  It does not show you what the data looks like in its basic form, but gives you an overview of the entire set.
+
+``` {r} 
+summary(gapminder)
+```
+
+* `head()` which gives you just the first 6 (default) observations in the set.  This shows you what the data actually looks like, in truncated form.
+
+``` {r} 
+head(gapminder)
+```
+
+* `glimpse()` for data frames shows you each variable, its class, and the first few instances.  This is built into the `tidyverse` package.
+
+``` {r} 
+glimpse(gapminder)
+```
+
+* `str()` shows you the structure of the data.  For complex data classes, this lets you see how it's all put together.
+
+``` {r} 
+str(gapminder)
+```
+
+## Tidying data
+
+### Tidy data principles
+
+'Tidy data' is a philosophy promoted among the data science community, and promoted by Hadley Wickham, a stats professor, R guru, and Chief Scientist at R Studio (he designed and developed many of the 'new' packages including the `tidyverse` family of packages).
+
+https://cran.r-project.org/web/packages/tidyr/vignettes/tidy-data.html
+
+Looking at the data views above, it looks like this data is already pretty "tidy", i.e. each row is a single observation and each column is a single variable.  But for fun let's make it "untidy" then tidy it back up again. We'll create a new object from the gapminder data with an untidy version of the data.  Since it is a data frame, so I'll add a _df tag at the end to help differentiate it.
+
+### `tidyr` package
+
+Data tidying uses the `tidyr` package tools to reshape the data into a more tidy form (and into less tidy forms if you really insist), including: 
+
+* `gather()` brings together data from several different variables (columns) into a single variable; a "key" column based on the original column names helps you distinguish them.
+* `spread()` is the opposite of `gather()` - take a single column of data, and a "key" column of data information, and spread the data out into columns with names taken from the "key" column.
+* `separate()` takes a single column with multiple values embedded in each observation (e.g. a `name` column with "Jane Doe", "John Doe", "Ebenezer Smythington") and slice it into multiple columns (e.g. two columns, `first name` "Jane" etc. and `last name` "Doe" etc.)
+* `unite()` is the opposite of `separate()` - takes multiple columns and glues them together into one.
+
+#### `spread()` to make our data wide format.
+
+For our example, let's make columns for each year, containing the population variable, for some reason.  This will be "wide" format (more columns) rather than "long" format (more rows).  Tidy data is typically "long" format and the `tidyverse` functions work better in that format.
+
+``` {r untidying data}
+
+pop_df_wide <- gap_df %>%
+  select(country, continent, year, pop) %>%
+  spread(key = year, value = pop)
+
+```
+
+The `%>%` is a 'pipe' operator which takes the output of one function and passes it into the next function as the first argument  The `tidyverse` functions pretty much all take a dataframe (or `tibble` class as an updated version of `data.frame` class) as their first  argument, so you can keep passing the dataframe along and modifying it in a more intuitive way, without needing temp variables along the way.
+
+``` {r}
+head(pop_df_wide)
+```
+
+Ugh, that is ugly and hard to work with!
+
+The same functionality could have been accomplished like this:
+
+```
+pop_df <- select(gap_df, country, continent, year, pop)
+pop_df_wide <- spread(pop_df, key = year, value = pop)
+```
+
+or nested like this:
+
+```
+pop_df_wide <- spread(select(gap_df, country, continent, year, pop), key = year, value = pop)
+```
+
+But please don't do that.  Harder for other audiences (including your future self, perhaps the most important audience) to read and interpret.
+
+#### `gather()` to make data "long" format
+
+``` {r}
+pop_df_narrow <- pop_df_wide %>%
+  gather(key = year, value = pop, `1952`:`2007`) 
+### it's rare, but if your column headings are numbers (or have spaces) you
+### can put the backtick marks around them.
+```
+
+# Data exploration and visualization
+
+Now that we have some idea of the data format, let's see if there are any questions we might be able to answer with it.  Data visualization is hugely helpful for seeing relationships among variables, and the R package `ggplot2` can create some nice plots quickly and reasonably intuitively.
+
+Let's start by looking at how per-capita GDP changes over time.  How many countries and how many years are in the data set?
+
+``` {r}
+gap_df %>%
+  select(country) %>%
+  distinct() %>%
+  nrow()
+
+gap_df$year %>%
+  unique() %>%
+  length()
+```
+
+142 countries plotted across 12 separate points in time - that's a lot of points.  Let's try it anyway.
+
+## Grammar of Graphics ("gg")
+
+The Grammar of Graphics philosophy is a way of thinking about plots as a collection of data variables, mapped to various **aesthetics** such as color, shape, size, etc.  These variables can be represented by different **geometric objects** - points, lines, bars, etc.  The mapping of variables to geometries and aesthetics can be controlled by different **scales** - e.g. color scales, axis scales, etc.  There's a cool feature called **facets** that allow you to quickly create small multiples of a plot, each with a variation on the underlying data set.  And on top of these, there are **themes** to control the mechanical aspects of the overall plot - text size/color, grid lines, etc.
+
+Note the ggplot grammar involves '+' instead of '%>%' -- think of it as each line adding new data and aesthetic mappings, geometric objects, scales, and facet specification.  It's building the plot one element at a time, rather than piping the plot from one function to the next.
+
+See Hadley Wickham's take on it here: http://vita.had.co.nz/papers/layered-grammar.pdf
+
+First let's take the `gap_df` dataframe and map the `year` variable to the x axis and the `gdpPercap` to the y axis.  We will assign the data to a point geometry.  Lines and bars (and other cool geometries) require a few more aesthetics to properly control them; points are nice and easy.
+
+``` {r}
+ggplot(data = gap_df, aes(x = year, y = gdpPercap)) +
+  geom_point()
+```
+
+OK, over time seems like per capita GDP increases; there are a few outliers; but it's hard to really separate out the components here.  What if we aesthetically map the `continent` variable to a color aesthetic?  (We could do countries, but then the legend fills the entire screen to represent colors for 142 countries).
+
+``` {r}
+ggplot(data = gap_df, aes(x = year, y = gdpPercap)) +
+  geom_point(aes(color = continent))
+```
+
+We can also create facets to show each continent separately:
+
+``` {r}
+ggplot(data = gap_df, aes(x = year, y = gdpPercap)) +
+  geom_point(aes(color = continent)) +
+  facet_wrap( ~ continent)
+```
+
+What is going on with Asia?  we'll come back to that.
+
+## Modifying and summarizing data
+
+It's often desirable to modify the data by calculating new variables (e.g. using per capita GDP and population to calculate a country's total GDP) or by aggregating variables into groups (e.g. finding the mean or max per capita GDP for all countries within a continent).  
+
+### `dplyr` package
+
+The `dplyr` package provides tools to manipulate your data into more useful forms, including: 
+
+* `mutate()` allows you to create new variables as combinations of other information
+* `filter()` allows you to select rows by whether they match certain criteria.
+* `select()` allows you to select,  exclude, or rename columns based on column name (`rename()` as well)
+* `distinct()` eliminates duplicate rows; very helpful if you've eliminated some columns.  Be very cautious with `distinct()` if you have used `group_by()`... `unique()` also works like this, though I think it ignores groups.
+* `group_by()` allows you to create groups within your dataset that will be considered and calculated separately, though simultaneously, from other groups.  `ungroup()` releases these groups back to the full dataset.
+* `summarize()` allows you to take grouped data and aggregate variables.
+
+``` {r} 
+gap_df1 <- gap_df %>%
+  group_by(continent) %>%
+  mutate(gdp_total = gdpPercap * pop, ### separate multiple variable mutations using commas
+         pcgdp_max = max(gdpPercap, na.rm = TRUE)) %>%
+  ungroup()
+
+# glimpse(gap_df1)
+### changing the pop from 'integer' class to 'numeric' class avoids an issue 
+### in the next step; 'integer' can only go up to about 2 billion, but
+### other classes ('numeric', 'double') are more flexible.
+### Sometimes the 'factor' class can be incredibly useful, but it can
+### create weird issues at other times; let's change the continent and
+### country variables to 'character' class which are more intuitive.
+gap_df1 <- gap_df1 %>%
+  mutate(pop       = as.numeric(pop),
+         country   = as.character(country),
+         continent = as.character(continent))
+
+gap_continent_summary <- gap_df1 %>%
+  group_by(continent, year) %>%
+  summarize(pcgdp_mean  = mean(gdpPercap, na.rm = TRUE) %>% round(2), 
+              ### pipe the mean into a round(value, number of digits) function to ditch absurd sig figs
+            pop_mean    = round(mean(pop, na.rm = TRUE), 2),
+              ### or just nest the mean into the round() function
+            pop_total   = sum(pop, na.rm = TRUE),
+            life_mean   = mean(lifeExp, na.rm = TRUE) %>% round(2),
+            n_countries = n()) %>%
+  ungroup()
+
+### The DT library lets you use html/javascript interactive tables.
+### You may need to first install the DT package.  
+### The format here allows you to access an installed package without
+### first loading the package using library(DT).  
+### This format (package::function()) can also be very useful when,
+### for example, two packages both have a same-named function and you want
+### to make sure it uses the one from the correct package.
+DT::datatable(gap_continent_summary)
+```
+
+#### Notes for the above code chunk         
+
+Note the mean, sum, median, etc functions will return NA if any of the data points in the group are NA.  The na.rm = TRUE removes them before calculating.
+Note that summarize() collapses each grouping into a single row, and drops any columns that are not explicitly grouped or created. Using mutate() keeps all the rows and columns, and just add new  variables as requested (and calculates means/maxes according to groups if any).
+
+## Assigning plots to objects
+
+`ggplot` outputs can be stored as an object, which can then be further manipulated by adding more geometries/etc.  That object can also be passed to other functions like `print` or `ggplotly`, or returned from within a function.  If you assign the plot to an object, it suppresses the immediate displaying of the plot, but you can view the plot just by calling the plot object's name.
+
+``` {r} 
+pcgdp_plot <- ggplot(gap_continent_summary, aes(x = year, y = pcgdp_mean, color = continent, blargle = pop_total)) +
+  geom_point() +
+  labs(title = 'Per capita GDP by continent',
+       x = 'Year',
+       y = 'Mean per capita GDP (US$)')
+
+# pcgdp_plot
+
+### you can add additional layers to the plot, e.g. lines.  The new geometry
+### will use the aesthetics as mapped in the original ggplot() call, unless
+### you override them.  For a line, we need to tell it a 'group' so it knows
+### which data points to connect.  For aesthetics that don't change based on
+### the data, put those outside the aes() call.
+pcgdp_plot_lines <- pcgdp_plot +
+  geom_line(aes(group = continent), alpha = .3, size = 2)
+
+# pcgdp_plot_lines
+
+### or facets (small multiples, divided out by one of your variables)
+pcgdp_facet_plot <- pcgdp_plot +
+  facet_wrap( ~ continent, scales = 'fixed') # (try scales = 'free' too)
+
+# print(pcgdp_facet_plot)
+
+### The plotly package allows you to display interactive versions
+### of ggplot objects using the ggplotly() function.
+plotly::ggplotly(pcgdp_plot_lines)
+
+```
+
+As you mouse over the points in the `ggplotly` plot, notice that `pop_total` shows up... then notice in the original `ggplot()` call, I added a nonsense aesthetic and mapped `pop_total` to that.  It doesn't affect the look of the plot, but recognizes that I want that variable to show up in the pop-up window.
+
+Now let's see about identifying those outliers we saw earlier, with the very high per-capita GDP in Asia in the early part of the dataset.  For each year, and each continent, let's identify the poorest 25% and richest 25% of countries based on the average per-cap GDP across the entire time span.  Then we can plot just the richest and inspect those outliers.
+
+``` {r}
+
+asia_df <- gap_df %>%
+  group_by(country) %>%
+  mutate(pcgdp_mean = mean(gdpPercap, na.rm = TRUE)) %>%
+  group_by(continent) %>%
+  mutate(cutoff_rich = quantile(pcgdp_mean, .75),
+         cutoff_poor = quantile(pcgdp_mean, .25)) %>%
+  ungroup() %>%
+  mutate(wealth = ifelse(pcgdp_mean <= cutoff_poor, 'poor', 'middle'),
+         wealth = ifelse(pcgdp_mean >= cutoff_rich, 'rich', wealth)) %>%
+  filter(continent == 'Asia')
+
+asia_gdp_plot <- ggplot(asia_df %>% filter(wealth == 'rich'),
+                        aes(x = year, y = gdpPercap, color = country)) +
+  theme_bw() + ### built-in theme to change the look of the plot
+  geom_point(aes(size = pop)) +
+  geom_line(aes(group = country), alpha = .3, size = 1)
+
+plotly::ggplotly(asia_gdp_plot)
+
+```
+
+
+# Linear models
+
+Let's try a different plot, examining whether per capita GDP and life expectancy are related.
+
+What variables are likely to make a difference here? We can use facet_wrap() and aesthetics to compare how variables affect the relationship.  We can use `ggplotly()` to allow for mouse-over to explore outliers.
+
+``` {r}
+
+gap_df_wealth <- gap_df %>%
+  group_by(country) %>%
+  mutate(pcgdp_mean = mean(gdpPercap, na.rm = TRUE)) %>%
+  group_by(continent) %>%
+  mutate(cutoff_rich = quantile(pcgdp_mean, .75),
+         cutoff_poor = quantile(pcgdp_mean, .25)) %>%
+  ungroup() %>%
+  mutate(wealth = ifelse(pcgdp_mean <= cutoff_poor, 'poor', 'middle'),
+         wealth = ifelse(pcgdp_mean >= cutoff_rich, 'rich', wealth))
+         
+pcgdp_vs_life_plot <- ggplot(gap_df_wealth %>%
+                               filter(continent == 'Asia') %>%
+                               filter(wealth %in% c('poor', 'rich')),
+                             aes(x = gdpPercap, y = lifeExp, asdf = year)) +
+  geom_point(aes(size = pop, color = country), alpha = .5) + ### use alpha to better see overlapping data pts
+  scale_color_discrete(guide = 'none') +    ### hides color scale from the legend ('guide')
+  geom_line(aes(color = country, group = country), size = .5, alpha = .5) +
+  scale_y_continuous(limits = c(0, NA)) +   ### force 0 on y axis
+  facet_grid( ~ wealth, scales = 'free_x')  ### does free_x distort perception of data?
+
+pcgdp_vs_life_plot <- pcgdp_vs_life_plot +
+  theme_bw() +### themes allow for changing the style of a plot.
+  labs(title = 'Per-cap GDP vs life expectancy in Asia, 1952-2007')
+
+print(pcgdp_vs_life_plot)
+```
+
+There are some clear patterns as we follow the countries through time; but let's eliminate the time variable and just look at the most recent year of data.
+
+``` {r}
+pcgdp_life_2007_plot <- ggplot(gap_df_wealth %>%
+                                 filter(year == max(year)),
+                               aes(x = gdpPercap, 
+                                   y = lifeExp,
+                                   blargle = country,
+                                   shape = continent)) +
+  theme_bw() +
+  geom_point(aes(size = pop, color = wealth), alpha = .7) + ### use alpha to better see overlapping data pts
+  scale_y_continuous(limits = c(0, NA))  ### force 0 on y axis
+
+print(pcgdp_life_2007_plot)
+```
+
+Seems like there is a definite pattern there too, but it is clearly not linear.  Let's see if we can linearize the data a bit, by taking a log transformation (base 10) of the gdpPercap variable.  From this we can create a linear model of log(gdp) versus life expectancy.  Note that this is looking across all years... so let's map `year` to an aesthetic, in case a separate pattern emerges.
+
+``` {r}
+gap_df_log <- gap_df_wealth %>%
+  mutate(log_gdp = log10(gdpPercap))
+
+ggplot(gap_df_log, aes(x = log_gdp, y = lifeExp)) +
+  geom_point(aes(color = year), alpha = .7) +
+  scale_color_distiller(type = 'seq', palette = 'Spectral')
+
+```
+
+That seems to create a more linear pattern; note that there is a separate trend where it seems like more recent years are pushed upward relative to older years (which makes sense, right?).  Let's create a linear model based on this, and plot a trend line.
+
+``` {r}
+gap_log_model <- lm(formula = lifeExp ~ log_gdp, data = gap_df_log)
+summary(gap_log_model)
+```
+
+Not a terrible model perhaps? would it be better or worse if we just looked at the most current year?  Try it and let me know.
+
+In the mean time let's plot and add a trend line.  Note the linear model output is not a data frame; it's a different class of object: a list.  (so is a ggplot object!).  And as such we need to understand a little more about complex data structures in R.  This chunk explores the structure (`str()`) and accesses the coefficients within the structure in a couple of different ways.
+
+``` {r}
+
+str(gap_log_model)
+gap_log_model$coefficients
+gap_log_model[['coefficients']]
+gap_log_model$coefficients[1] ### the intercept; [2] is the slope based on lifeExp as a function of log_gdp
+```
+
+A slope of `r gap_log_model$coefficients[2]` means that for every one point increase in log_gdp (which corresponds to a 10x increase in per capita GDP) we get that many additional years of life expectancy!
+
+``` {r}
+
+mdl_int   <- gap_log_model$coefficients[1]
+mdl_slope <- gap_log_model$coefficients[2]
+
+label_x <- 3
+label_y <- mdl_slope * label_x + mdl_int - 5
+
+gap_df_log <- gap_df_log %>%
+  mutate(wealth = factor(wealth, levels = c('poor', 'middle', 'rich')))
+### note the use of factor here, instead of character, to force the order of
+### the wealth categories in a categorical variable.
+
+pcgdp_log_plot <- ggplot(gap_df_log, aes(x = log_gdp, y = lifeExp)) +
+  geom_point(aes(color = wealth, size = pop), alpha = .5) +
+  scale_color_manual(values = c('poor' = 'coral3', 'middle' = 'cornflowerblue', 'rich' = 'green3')) +
+  geom_abline(intercept = gap_log_model$coefficients[1],
+              slope     = gap_log_model$coefficients[2],
+              color     = 'red') +
+  annotate('text', x = label_x, y = label_y, 
+           hjust = 0,
+           label = sprintf('lifeExp = %.2f * log_gdp + %.2f + ε', mdl_slope, mdl_int))
+
+print(pcgdp_log_plot)
+```
+
+# Conclusion
+
+I hope this helps with some basics of R, and provides some examples of code to reverse-engineer and use for your own projects.
+
+This little tutorial was created using R Markdown; it is a handy way of communicating analyses in R, especially once you can use GitHub to publish your results directly to the web for others to use and admire.
